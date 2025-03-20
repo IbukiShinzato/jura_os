@@ -1,3 +1,5 @@
+use alloc::string::String;
+use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::{
     pin::Pin,
@@ -6,12 +8,20 @@ use core::{
 use crossbeam_queue::ArrayQueue;
 use futures_util::task::AtomicWaker;
 use futures_util::{stream::Stream, StreamExt};
-use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+use lazy_static::lazy_static;
+use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
+use spin::Mutex;
 
 static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 static WAKER: AtomicWaker = AtomicWaker::new();
+static PROMPT: &str = "?e235718?jura_os ";
 
 use crate::{print, println};
+
+lazy_static! {
+    static ref COMMANDS: Mutex<Vec<char>> = Mutex::new(Vec::new());
+    static ref CLEAR_FRAG: Mutex<bool> = Mutex::new(false);
+}
 
 // lib.rsからのみ利用可能
 #[allow(dead_code)]
@@ -63,6 +73,9 @@ impl Stream for ScancodeStream {
 }
 
 pub async fn print_keypress() {
+    // debug
+    print!("{}", PROMPT);
+
     let mut scancodes = ScancodeStream::new();
     let mut keyboard = Keyboard::new(
         ScancodeSet1::new(),
@@ -73,11 +86,44 @@ pub async fn print_keypress() {
     while let Some(scancode) = scancodes.next().await {
         if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
             if let Some(key) = keyboard.process_keyevent(key_event) {
-                match key {
-                    DecodedKey::Unicode(character) => print!("{}", character),
-                    DecodedKey::RawKey(key) => print!("{:?}", key),
-                }
+                parse_keypress(key);
             }
         }
+    }
+}
+
+fn parse_keypress(key: DecodedKey) {
+    let mut commands = COMMANDS.lock();
+    let mut clear_flag = CLEAR_FRAG.lock();
+
+    match key {
+        DecodedKey::Unicode(character) => match character {
+            '\n' => {
+                let msg: String = commands.iter().collect();
+                print!("\n{}\n\n{}", msg, PROMPT);
+
+                commands.clear();
+            }
+            'l' => {
+                if *clear_flag {
+                    for _ in 0..24 {
+                        println!();
+                    }
+                    print!("{}", PROMPT);
+                }
+                *clear_flag = false;
+                commands.push(character);
+                print!("{}", character);
+            }
+            _ => {
+                commands.push(character);
+                print!("{}", character);
+            }
+        },
+        DecodedKey::RawKey(key) => match key {
+            KeyCode::LShift | KeyCode::RShift | KeyCode::RControl => {}
+            KeyCode::LControl => *clear_flag = true,
+            _ => print!("{:?}", key),
+        },
     }
 }

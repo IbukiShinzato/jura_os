@@ -40,11 +40,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap intialization failed");
 
+    #[cfg(test)]
+    test_main();
+
     // execution
     example_mapping(boot_info);
 
     let mut executor = Executor::new();
-    // executor.spawn(Task::new(example_task()));
     executor.spawn(Task::new(keyboard::print_keypress()));
     executor.run();
 }
@@ -114,17 +116,6 @@ fn output_l4_page_table(boot_info: &'static BootInfo) {
                 i,
                 entry.frame().unwrap().start_address()
             );
-            // let phys = entry.frame().unwrap().start_address();
-            // let virt = physical_memory_offset.as_u64() + phys.as_u64();
-            // let ptr = VirtAddr::new(virt).as_mut_ptr();
-            // let l3_table: &PageTable = unsafe { &*ptr };
-
-            // for (i, entry) in l3_table.iter().enumerate() {
-            //     if !entry.is_unused() {
-            //         println!("L3 Entry {}: {:?}", i, entry);
-            //     }
-            //     // println!("L3 Entry {}: {:?}", i, entry);
-            // }
         }
     }
 }
@@ -253,5 +244,5 @@ async fn async_number() -> u32 {
 #[allow(dead_code)]
 async fn example_task() {
     let number = async_number().await;
-    println!("async number: {}", number);
+    println!("async number: {}\n", number);
 }

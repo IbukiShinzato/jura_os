@@ -7,7 +7,6 @@ use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, Pag
 
 use crate::gdt;
 use crate::hlt_loop;
-use crate::print;
 use crate::println;
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -71,7 +70,7 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    print!(".");
+    // print!(".");
 
     unsafe {
         // EOI(End Of Interrupt)信号をコントローラに送る
@@ -81,64 +80,15 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
-    use spin::Mutex;
     use x86_64::instructions::port::Port;
 
-    lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> =
-            Mutex::new(Keyboard::new(
-                ScancodeSet1::new(),
-                layouts::Us104Key,
-                HandleControl::Ignore
-            ));
-    }
-
-    let mut keyboard = KEYBOARD.lock();
-
-    //  PS/2 コントローラのデータポート(0x60)から読み取って出力
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => match key {
-                    // 修飾キーは出力しない
-                    KeyCode::LShift | KeyCode::LControl | KeyCode::RShift | KeyCode::RControl => {}
-                    _ => print!("{:?}", key),
-                },
-            }
-        }
-    }
-
-    // print!("{}", scancode);
-
-    // // スキャンコードをキーに変換
-    // let key = match scancode {
-    //     0x02 => Some('1'),
-    //     0x03 => Some('2'),
-    //     0x04 => Some('3'),
-    //     0x05 => Some('4'),
-    //     0x06 => Some('5'),
-    //     0x07 => Some('6'),
-    //     0x08 => Some('7'),
-    //     0x09 => Some('8'),
-    //     0x0a => Some('9'),
-    //     0x0b => Some('0'),
-    //     // 数字のキー以外
-    //     _ => None,
-    // };
-
-    // if let Some(key) = key {
-    //     print!("{}", key);
-    // }
+    crate::task::keyboard::add_scancode(scancode);
 
     unsafe {
         PICS.lock()
-            // implで構造体のフィールド全体のas_u8を実装済み
-            .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8())
+            .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
 }
 
