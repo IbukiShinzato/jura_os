@@ -29,8 +29,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use jura_os::allocator;
     use jura_os::memory::{self, BootInfoFrameAllocator};
 
-    println!("Hello World{}", "!");
-
     // GDT, IDTなどの初期化
     jura_os::init();
 

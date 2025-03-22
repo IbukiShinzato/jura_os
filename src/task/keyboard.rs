@@ -16,7 +16,7 @@ static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 static WAKER: AtomicWaker = AtomicWaker::new();
 static PROMPT: &str = "?e235718?jura_os ";
 
-use crate::{print, println};
+use crate::{exit_qemu, print, println, QemuExitCode};
 
 lazy_static! {
     static ref COMMANDS: Mutex<Vec<char>> = Mutex::new(Vec::new());
@@ -106,18 +106,27 @@ fn parse_keypress(key: DecodedKey) {
             }
             'l' => {
                 if *clear_flag {
-                    for _ in 0..24 {
+                    for _ in 0..25 {
                         println!();
                     }
-                    print!("{}", PROMPT);
+                    let msg: String = commands.iter().collect();
+                    print!("{}{}", PROMPT, msg);
+                } else {
+                    commands.push(character);
+                    print!("{}", character);
                 }
                 *clear_flag = false;
-                commands.push(character);
-                print!("{}", character);
+            }
+            'c' => {
+                // qemuを終了
+                if *clear_flag {
+                    exit_qemu(QemuExitCode::Success);
+                }
             }
             _ => {
                 commands.push(character);
                 print!("{}", character);
+                *clear_flag = false;
             }
         },
         DecodedKey::RawKey(key) => match key {
