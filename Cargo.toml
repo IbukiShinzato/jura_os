@@ -35,7 +35,7 @@ features = ["alloc"]
 
 [package.metadata.bootimage]
 # for cargo run
-run-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio"]
+run-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-drive", "file=os_disk.img,format=qcow2"]
 
 # 0xf4ポートの4byte
 # -display noneでQEMUを隠すことができる
