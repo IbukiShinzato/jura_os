@@ -16,11 +16,11 @@ static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 static WAKER: AtomicWaker = AtomicWaker::new();
 static PROMPT: &str = "?e235718?jura_os ";
 
-use crate::{exit_qemu, print, println, QemuExitCode};
+use crate::{exit_qemu, print, println, vga_buffer::WRITER, QemuExitCode};
 
 lazy_static! {
     static ref COMMANDS: Mutex<Vec<char>> = Mutex::new(Vec::new());
-    static ref CLEAR_FRAG: Mutex<bool> = Mutex::new(false);
+    static ref LC_FRAG: Mutex<bool> = Mutex::new(false);
 }
 
 // lib.rsからのみ利用可能
@@ -94,7 +94,7 @@ pub async fn print_keypress() {
 
 fn parse_keypress(key: DecodedKey) {
     let mut commands = COMMANDS.lock();
-    let mut clear_flag = CLEAR_FRAG.lock();
+    let mut lc_flag = LC_FRAG.lock();
 
     match key {
         DecodedKey::Unicode(character) => match character {
@@ -105,9 +105,12 @@ fn parse_keypress(key: DecodedKey) {
                 commands.clear();
             }
             'l' => {
-                if *clear_flag {
-                    for _ in 0..25 {
-                        println!();
+                if *lc_flag {
+                    {
+                        let row = WRITER.lock().row_position;
+                        for _ in 0..row + 1 {
+                            println!();
+                        }
                     }
                     let msg: String = commands.iter().collect();
                     print!("{}{}", PROMPT, msg);
@@ -115,23 +118,34 @@ fn parse_keypress(key: DecodedKey) {
                     commands.push(character);
                     print!("{}", character);
                 }
-                *clear_flag = false;
+                *lc_flag = false;
             }
             'c' => {
                 // qemuを終了
-                if *clear_flag {
+                if *lc_flag {
                     exit_qemu(QemuExitCode::Success);
+                }
+            }
+            // Delete Key
+            '\u{8}' => {
+                match commands.pop() {
+                    Some(_char) => {}
+                    None => {}
+                }
+
+                {
+                    WRITER.lock().clear_word();
                 }
             }
             _ => {
                 commands.push(character);
                 print!("{}", character);
-                *clear_flag = false;
+                *lc_flag = false;
             }
         },
         DecodedKey::RawKey(key) => match key {
             KeyCode::LShift | KeyCode::RShift | KeyCode::RControl => {}
-            KeyCode::LControl => *clear_flag = true,
+            KeyCode::LControl => *lc_flag = true,
             _ => print!("{:?}", key),
         },
     }
