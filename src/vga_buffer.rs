@@ -58,6 +58,7 @@ struct Buffer {
 }
 
 pub struct Writer {
+    pub row_position: usize,
     column_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer,
@@ -75,7 +76,7 @@ impl Writer {
                     self.new_line();
                 }
 
-                let row = BUFFER_HEIGHT - 1;
+                let row = self.row_position;
                 let col = self.column_position;
 
                 let color_code = self.color_code;
@@ -126,6 +127,26 @@ impl Writer {
             self.buffer.chars[row][col].write(blank);
         }
     }
+
+    #[allow(dead_code)]
+    pub fn clear_word(&mut self) {
+        let blank = ScreenChar {
+            ascii_character: b' ',
+            color_code: self.color_code,
+        };
+
+        if self.column_position == 0 {
+            self.column_position = BUFFER_WIDTH - 1;
+            self.row_position -= 1;
+        } else {
+            self.column_position -= 1;
+        }
+
+        let row = self.row_position;
+        let col = self.column_position;
+
+        self.buffer.chars[row][col].write(blank);
+    }
 }
 
 impl core::fmt::Write for Writer {
@@ -138,6 +159,7 @@ impl core::fmt::Write for Writer {
 lazy_static! {
     // spin::Mutexで内部可変性を追加
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
+        row_position: BUFFER_HEIGHT - 1,
         column_position: 0,
         color_code: ColorCode::new(Color::Yellow, Color::Black),
         // 0xb8000はVGAテキストモードのバッファが配置されている物理アドレス
