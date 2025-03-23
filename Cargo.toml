@@ -34,11 +34,14 @@ default-features = false
 features = ["alloc"]
 
 [package.metadata.bootimage]
+# for cargo run
+run-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-drive", "file=os_disk.img,format=qcow2"]
+
 # 0xf4ポートの4byte
 # -display noneでQEMUを隠すことができる
+# for cargo test
 test-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-display", "none"]
 test-success-exit-code = 33  # (0x10 << 1) | 1
-
 
 # should_panicテストをtest_runnerから無効化
 [[test]]
