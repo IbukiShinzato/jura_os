@@ -14,6 +14,7 @@ uart_16550 = "0.2.0"
 pic8259 = "0.10.1"
 pc-keyboard = "0.7.0"
 linked_list_allocator = "0.9.0"
+scsi = "0.2.1"
 
 [dependencies.lazy_static]
 version = "1.0"
@@ -35,7 +36,7 @@ features = ["alloc"]
 
 [package.metadata.bootimage]
 # for cargo run
-run-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-drive", "file=os_disk.img,format=qcow2"]
+run-args = ["-monitor", "stdio", "-machine", "pc", "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-drive", "file=disk.img,if=none,media=disk,id=mydisk,format=raw", "-device", "virtio-blk,drive=mydisk,id=virtio-disk"]
 
 # 0xf4ポートの4byte
 # -display noneでQEMUを隠すことができる
